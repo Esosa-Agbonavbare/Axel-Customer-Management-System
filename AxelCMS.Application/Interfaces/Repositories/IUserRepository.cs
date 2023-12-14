@@ -1,12 +1,16 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using AxelCMS.Domain.Entities;
+using System.Linq.Expressions;
 
 namespace AxelCMS.Application.Interfaces.Repositories
 {
-    internal interface IUserRepository
+    public interface IUserRepository : IGenericRepository<User>
     {
+        Task AddUserAsync(User user);
+        Task<User> GetUserByIdAsync(string id);
+        Task<IList<User>> GetAllUsersAsync();
+        Task<IList<User>> FindUserAsync(Expression<Func<User, bool>> condition);
+        Task<bool> CheckUserAsync(Expression<Func<User, bool>> condition);
+        Task UpdateUserAsync(User user);
+        Task DeleteUserAsync(User user);
     }
 }

@@ -4,9 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace AxelCMS.Application.Interfaces.Repositories
+namespace AxelCMS.Persistence.Repositories
 {
-    public interface IAddressRepository
+    internal class AddressRepository
     {
     }
 }

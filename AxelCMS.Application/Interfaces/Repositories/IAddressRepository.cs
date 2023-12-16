@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace AxelCMS.Application.Interfaces.Repositories
 {
-    internal class IAddressRepository
+    public interface IAddressRepository
     {
     }
 }

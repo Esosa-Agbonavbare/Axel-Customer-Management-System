@@ -43,7 +43,7 @@
         }
         public static ApiResponse<T> Success(T data, string message, int statusCode)
         {
-            return new ApiResponse<T>(true, message, statusCode, new List<string>());
+            return new ApiResponse<T>(true, message, statusCode, data, new List<string>());
         }
         public static ApiResponse<T> Failed(bool isSucceeded, string message, int statusCode, List<string> errors)
         {

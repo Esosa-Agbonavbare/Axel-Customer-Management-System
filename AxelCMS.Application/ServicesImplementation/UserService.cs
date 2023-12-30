@@ -80,7 +80,6 @@ namespace AxelCMS.Application.ServicesImplementation
             catch (Exception ex)
             {
                 Console.WriteLine("An error occurred while updating the user. UserID: {UserId}", userId);
-
                 return ApiResponse<bool>.Failed(false, "An error occurred while updating the user", 500, new List<string> { ex.Message});
             }
         }

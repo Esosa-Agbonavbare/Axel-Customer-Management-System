@@ -13,6 +13,6 @@ namespace AxelCMS.Domain.Entities
         public string ImageUrl { get; set; }
         public string VerificationToken { get; set; }
         public string PasswordResetToken { get; set; }
-        public DateTime ResetTokenExpires { get; set; }
+        public DateTime? ResetTokenExpires { get; set; }
     }
 }

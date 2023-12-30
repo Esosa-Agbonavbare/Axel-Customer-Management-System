@@ -118,7 +118,6 @@ namespace AxelCMS.Application.ServicesImplementation
                 new Claim(JwtRegisteredClaimNames.Jti, user.Id),
                 new Claim(ClaimTypes.Role, roles)
             };
-
             var token = new JwtSecurityToken(
                 issuer: null,
                 audience: null,
@@ -126,15 +125,20 @@ namespace AxelCMS.Application.ServicesImplementation
                 expires: DateTime.UtcNow.AddMinutes(int.Parse(_configuration.GetSection("JwtSettings:AccessTokenExpiration").Value)),
                 signingCredentials: credential
             );
-
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
-        public async Task<ApiResponse<string>> ConfirmEmailAsync(User user, string token)
+        public async Task<ApiResponse<string>> ConfirmEmailAsync(ConfirmEmailDto confirmEmailDto)
         {
             try
             {
-                var result = await _userManager.ConfirmEmailAsync(user, token);
+                var user = await _userManager.FindByEmailAsync(confirmEmailDto.Email);
+
+                if (user == null)
+                {
+                    return new ApiResponse<string>(false, "User not found", StatusCodes.Status404NotFound);
+                }
+                var result = await _userManager.ConfirmEmailAsync(user, confirmEmailDto.Token);
 
                 if (result.Succeeded)
                 {
@@ -148,11 +152,11 @@ namespace AxelCMS.Application.ServicesImplementation
             catch (Exception ex)
             {
                 var errorList = new List<string> { ex.Message };
-                return ApiResponse<string>.Failed(false, "Error occurre during email confirmation", StatusCodes.Status500InternalServerError, errorList);
+                return ApiResponse<string>.Failed(false, "Error occurred during email confirmation", StatusCodes.Status500InternalServerError, errorList);
             }
         }
 
-        public ApiResponse<string> ValidateToken(string token)
+        public ApiResponse<string> ValidateToken(ValidateTokenDto validateTokenDto)
         {
             try
             {
@@ -168,7 +172,7 @@ namespace AxelCMS.Application.ServicesImplementation
                     ValidAudience = null,
                     IssuerSigningKey = new SymmetricSecurityKey(key)
                 };
-                var principal = tokenHandler.ValidateToken(token, validationParameters, out SecurityToken securityToken);
+                var principal = tokenHandler.ValidateToken(validateTokenDto.Token, validationParameters, out SecurityToken securityToken);
                 return new ApiResponse<string>(true, "Token is valid", StatusCodes.Status200OK);
             }
             catch (SecurityTokenException ex)
@@ -183,33 +187,29 @@ namespace AxelCMS.Application.ServicesImplementation
             }
         }
 
-        public async Task<ApiResponse<string>> ForgotPasswordAsync(string email)
+        public async Task<ApiResponse<string>> ForgotPasswordAsync(ForgotPasswordDto forgotPasswordDto)
         {
             try
             {
-                var user = await _userManager.FindByEmailAsync(email);
+                var user = await _userManager.FindByEmailAsync(forgotPasswordDto.Email);
 
                 if (user == null)
                 {
                     return new ApiResponse<string>(false, "User not found or email not confirmed", StatusCodes.Status404NotFound);
                 }
                 string token = await _userManager.GeneratePasswordResetTokenAsync(user);
-
                 user.PasswordResetToken = token;
                 user.ResetTokenExpires = DateTime.UtcNow.AddHours(1);
-
                 await _userManager.UpdateAsync(user);
-
-                var resetPasswordUrl = "http://localhost:3000/reset-password?email=" + Uri.EscapeDataString(email) + "&token=" + Uri.EscapeDataString(token);
-
+                var resetPasswordUrl = "http://localhost:3000/reset-password?email=" + Uri.EscapeDataString(forgotPasswordDto.Email) + "&token=" + Uri.EscapeDataString(token);
+                
                 var mailRequest = new MailRequest
                 {
-                    ToEmail = email,
+                    ToEmail = forgotPasswordDto.Email,
                     Subject = "Axel Corporations Password Reset Instructions",
                     Body = $"Please reset your password by clicking <a href = '{resetPasswordUrl}'>here</a>"
                 };
                 await _emailService.SendHtmlEmailAsync(mailRequest);
-
                 return new ApiResponse<string>(true, "Password reset email sent successfully", StatusCodes.Status200OK);
             }
             catch (Exception ex)
@@ -219,17 +219,17 @@ namespace AxelCMS.Application.ServicesImplementation
             }
         }
 
-        public async Task<ApiResponse<string>> ResetPasswordAsync(string email, string token, string newPassword)
+        public async Task<ApiResponse<string>> ResetPasswordAsync(ResetPasswordDto resetPasswordDto)
         {
             try
             {
-                var user = await _userManager.FindByNameAsync(email);
+                var user = await _userManager.FindByEmailAsync(resetPasswordDto.Email);
 
                 if (user == null)
                 {
                     return new ApiResponse<string>(false, "User not found", StatusCodes.Status404NotFound);
                 }
-                var result = await _userManager.ResetPasswordAsync(user, token, newPassword);
+                var result = await _userManager.ResetPasswordAsync(user, resetPasswordDto.Token, resetPasswordDto.NewPassword);
 
                 if (result.Succeeded)
                 {
@@ -252,7 +252,7 @@ namespace AxelCMS.Application.ServicesImplementation
             }
         }
 
-        public async Task<ApiResponse<string>> ChangePasswordAsync(User user, string authToken, string currentPassword, string newPassword)
+        public async Task<ApiResponse<string>> ChangePasswordAsync(string authToken, UpdatePasswordDto updatePasswordDto)
         {
             try
             {
@@ -267,13 +267,13 @@ namespace AxelCMS.Application.ServicesImplementation
                     return new ApiResponse<string>(false, "Failed to extract User Id from token", StatusCodes.Status401Unauthorized);
                 }
                 var userId = userIdResponse.Data;
-                var identifiedUser = await _userManager.FindByIdAsync(userId);
+                var user = await _userManager.FindByIdAsync(userId);
 
-                if (identifiedUser == null)
+                if (user == null)
                 {
                     return new ApiResponse<string>(false, "User not found", StatusCodes.Status401Unauthorized);
                 }
-                var result = await _userManager.ChangePasswordAsync(user, currentPassword, newPassword);
+                var result = await _userManager.ChangePasswordAsync(user, updatePasswordDto.CurrentPassword, updatePasswordDto.NewPassword);
 
                 if (result.Succeeded)
                 {

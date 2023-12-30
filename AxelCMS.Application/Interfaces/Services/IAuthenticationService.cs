@@ -10,10 +10,10 @@ namespace AxelCMS.Application.Interfaces.Services
         Task<ApiResponse<string>> LoginAsync(LoginDto loginDto);
         string GenerateJwtToken(User user, string roles);
         ApiResponse<string> ExtractUserIdFromToken(string authToken);
-        Task<ApiResponse<string>> ConfirmEmailAsync(User user, string token);
-        Task<ApiResponse<string>> ForgotPasswordAsync(string email);
-        Task<ApiResponse<string>> ResetPasswordAsync(string email, string token, string newPassword);
-        ApiResponse<string> ValidateToken(string token);
-        Task<ApiResponse<string>> ChangePasswordAsync(User user, string authToken, string currentPassword, string newPassword);
+        Task<ApiResponse<string>> ConfirmEmailAsync(ConfirmEmailDto confirmEmailDto);
+        Task<ApiResponse<string>> ForgotPasswordAsync(ForgotPasswordDto forgotPasswordDto);
+        Task<ApiResponse<string>> ResetPasswordAsync(ResetPasswordDto resetPasswordDto);
+        ApiResponse<string> ValidateToken(ValidateTokenDto validateTokenDto);
+        Task<ApiResponse<string>> ChangePasswordAsync(string authToken, UpdatePasswordDto updatePasswordDto);
     }
 }

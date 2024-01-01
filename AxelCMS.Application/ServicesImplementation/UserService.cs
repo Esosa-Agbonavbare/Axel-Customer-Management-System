@@ -14,10 +14,11 @@ namespace AxelCMS.Application.ServicesImplementation
         private readonly IMapper _mapper;
         private readonly ICloudinaryService<User> _cloudinaryService;
 
-        public UserService(IUnitOfWork unitOfWork, IMapper mapper)
+        public UserService(IUnitOfWork unitOfWork, IMapper mapper, ICloudinaryService<User> cloudinaryService)
         {
             _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
             _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
+            _cloudinaryService = cloudinaryService;
         }
 
         public async Task<ApiResponse<UserDto>> GetUserByIdAsync(string userId)
@@ -25,6 +26,7 @@ namespace AxelCMS.Application.ServicesImplementation
             try
             {
                 var user = await _unitOfWork.UserRepository.GetByIdAsync(userId);
+
                 if (user == null)
                 {
                     return ApiResponse<UserDto>.Failed(false, "User not found", 404, new List<string> { "User not found" });
@@ -52,7 +54,6 @@ namespace AxelCMS.Application.ServicesImplementation
                     user => user.Id.ToString()
                 );
                 var pagedUserDtos = _mapper.Map<PageResult<IEnumerable<UserDto>>>(pagedUsers);
-
                 return ApiResponse<PageResult<IEnumerable<UserDto>>>.Success(pagedUserDtos, "Users found", 200);
             }
             catch(Exception ex)
@@ -74,7 +75,6 @@ namespace AxelCMS.Application.ServicesImplementation
                 _mapper.Map(updateUserDto, user);
                 await _unitOfWork.UserRepository.UpdateAsync(user);
                 await _unitOfWork.SaveChangesAsync();
-
                 return ApiResponse<bool>.Success(true, "User updated successfully", 200);
             }
             catch (Exception ex)
@@ -99,7 +99,6 @@ namespace AxelCMS.Application.ServicesImplementation
                     return "Invalid file size";
 
                 _mapper.Map(updatePhotoDto, user);
-
                 var imageUrl = await _cloudinaryService.UploadImage(userId, file);
 
                 if (imageUrl == null)
@@ -107,11 +106,8 @@ namespace AxelCMS.Application.ServicesImplementation
                     Console.WriteLine($"Failed to upload image for user with Id {userId}");
                     return null;
                 }
-
                 user.ImageUrl = imageUrl;
-
                 await _unitOfWork.UserRepository.UpdateAsync(user);
-
                 return imageUrl;
             }
             catch(Exception ex)
@@ -126,14 +122,13 @@ namespace AxelCMS.Application.ServicesImplementation
             try
             {
                 var user = await _unitOfWork.UserRepository.GetByIdAsync(userId);
+
                 if (user == null)
                 {
                     return ApiResponse<bool>.Failed(false, "User not found", 404, new List<string> { "User not found" });
                 }
                 await _unitOfWork.UserRepository.DeleteAsync(user);
-
                 await _unitOfWork.SaveChangesAsync();
-
                 return ApiResponse<bool>.Success(true, "User deleted successfully", 200);
             }
             catch (Exception ex)

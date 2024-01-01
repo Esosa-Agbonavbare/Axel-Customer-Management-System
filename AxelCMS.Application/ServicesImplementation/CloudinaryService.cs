@@ -5,7 +5,6 @@ using CloudinaryDotNet;
 using CloudinaryDotNet.Actions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
-using System.Security.Principal;
 
 namespace AxelCMS.Application.ServicesImplementation
 {
@@ -43,13 +42,12 @@ namespace AxelCMS.Application.ServicesImplementation
             try
             {
                 var uploadResult = await _cloudinary.UploadAsync(uploadParams);
-
                 await _repository.UpdateAsync(entity);
                 return uploadResult.SecureUrl.AbsoluteUri;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error: {ex}");
+                Console.WriteLine($"Error: {ex.Message}");
                 return "Image upload or database update error occurred";
             }            
         }

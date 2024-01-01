@@ -1,6 +1,15 @@
+using AxelCMS.Extensions;
+using AxelCMS.Mapper;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
+var configuration = builder.Configuration;
+builder.Services.IdentityConfiguration();
+builder.Services.AddAutoMapper(typeof(MapperProfile));
+builder.Services.AddDependencies(configuration);
+builder.Services.AddAuthentication();
+
 
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle

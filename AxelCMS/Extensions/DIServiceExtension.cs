@@ -5,6 +5,7 @@ using AxelCMS.Domain.Entities;
 using AxelCMS.Persistence.Context;
 using AxelCMS.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace AxelCMS.Extensions
 {
@@ -14,9 +15,8 @@ namespace AxelCMS.Extensions
         {
             var cloudinarySettings = configuration.GetSection("Cloudinary").Get<CloudinarySettings>();
             services.AddSingleton(cloudinarySettings);
-            var emailSettings = new EmailSettings();
-            configuration.GetSection("EmailSettings").Bind(emailSettings);
-            services.AddSingleton(emailSettings);
+            services.Configure<EmailSettings>(configuration.GetSection("EmailSettings"));
+            services.AddSingleton(resolver => resolver.GetRequiredService<IOptions<EmailSettings>>().Value);
             services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
             services.AddScoped(typeof(ICloudinaryService<>), typeof(CloudinaryService<>));
             services.AddScoped<IUnitOfWork, UnitOfWork>();

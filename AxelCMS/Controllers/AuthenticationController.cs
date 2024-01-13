@@ -73,7 +73,7 @@ namespace AxelCMS.Controllers
         }
 
         [HttpPost("update-password")]
-        public async Task<IActionResult> UpdatePassword([FromHeader(Name = "Authorizaiton")] string authToken, [FromBody] UpdatePasswordDto updatePasswordDto)
+        public async Task<IActionResult> UpdatePassword([FromHeader(Name = "Authorization Token")] string authToken, [FromBody] UpdatePasswordDto updatePasswordDto)
         {
             if (!ModelState.IsValid)
             {

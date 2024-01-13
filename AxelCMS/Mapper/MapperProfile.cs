@@ -10,6 +10,8 @@ namespace AxelCMS.Mapper
     {
         public MapperProfile()
         {
+            CreateMap<RegisterDto, User>()
+                .ForMember(dest => dest.UserName, opt => opt.MapFrom(src => src.Email));
             CreateMap<User, UserDto>();
             CreateMap<PageResult<IEnumerable<User>>, PageResult<IEnumerable<UserDto>>>();
             CreateMap<User, UpdateUserDto>().ReverseMap();

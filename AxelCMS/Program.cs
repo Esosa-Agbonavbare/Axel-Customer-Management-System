@@ -1,3 +1,4 @@
+using AxelCMS.Common.Utilities;
 using AxelCMS.Extensions;
 using AxelCMS.Mapper;
 
@@ -22,10 +23,17 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Axel Customer Management System v1.0"));
+}
+using (var scope = app.Services.CreateScope())
+{
+    var serviceProvider = scope.ServiceProvider;
+    Seeder.SeedRoles(serviceProvider);
 }
 
 app.UseHttpsRedirection();
+
+app.UseAuthentication();
 
 app.UseAuthorization();
 

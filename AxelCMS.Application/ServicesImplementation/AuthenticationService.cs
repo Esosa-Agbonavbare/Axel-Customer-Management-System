@@ -3,6 +3,9 @@ using AxelCMS.Application.DTO;
 using AxelCMS.Application.Interfaces.Services;
 using AxelCMS.Domain;
 using AxelCMS.Domain.Entities;
+using Google.Apis.Auth;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
@@ -11,6 +14,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using IAuthenticationService = AxelCMS.Application.Interfaces.Services.IAuthenticationService;
 
 namespace AxelCMS.Application.ServicesImplementation
 {
@@ -319,6 +323,51 @@ namespace AxelCMS.Application.ServicesImplementation
                 var errorList = new List<string> { ex.Message };
                 return new ApiResponse<string>(false, "Error extracting User Id from token", StatusCodes.Status500InternalServerError, errorList);
             }
-        }        
+        }
+
+        public async Task<ApiResponse<string>> VerifyAndAuthenticateUserAsync(string idToken)
+        {
+            try
+            {
+                var payload = await GoogleJsonWebSignature.ValidateAsync(idToken, new GoogleJsonWebSignature.ValidationSettings());
+                var userId = payload.Subject;
+                var userEmail = payload.Email;
+                var userName = payload.Name;
+                var firstName = payload.GivenName;
+                var lastName = payload.FamilyName;
+                var existingUser = await _userManager.FindByEmailAsync(userEmail);
+                if (existingUser == null)
+                {
+                    var newUser = new User
+                    {
+                        Email = userEmail,
+                        UserName = userEmail,
+                        FirstName = firstName,
+                        LastName = lastName,
+                    };
+                    var result = await _userManager.CreateAsync(newUser);
+                    if (result.Succeeded)
+                    {
+                        await _signInManager.SignInAsync(newUser, isPersistent: false);
+                        var Token = GenerateJwtToken(newUser, "User"); //how to assign role using google authentication?
+                        return new ApiResponse<string>(true, "User created and authenticated successfully on the server side", StatusCodes.Status200OK, Token);
+                    }
+                    else
+                    {
+                        return new ApiResponse<string>(false, "User creation failed", StatusCodes.Status400BadRequest);
+                    }
+                }
+                else
+                {
+                    await _signInManager.SignInAsync(existingUser, isPersistent: false);
+                    var Token = GenerateJwtToken(existingUser, "User"); //how to assign role using google authentication?
+                    return new ApiResponse<string>(true, "User authenticated successfully on the server side", StatusCodes.Status200OK, Token);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<string>(false, "Error occurred while authenticating user", StatusCodes.Status500InternalServerError, new List<string> { ex.Message});
+            }
+        }
     }
 }

@@ -52,6 +52,16 @@ namespace AxelCMS.Controllers
             return Ok(await _authenticationService.ConfirmEmailAsync(confirmEmailDto));
         }
 
+        [HttpPost("signin-google/{token}")]
+        public async Task<IActionResult> GoogleAuth([FromRoute] string token)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new ApiResponse<string>(false, "Invalid model state.", StatusCodes.Status400BadRequest, ModelState.Values.SelectMany(x => x.Errors).Select(x => x.ErrorMessage).ToList()));
+            }
+            return Ok(await _authenticationService.VerifyAndAuthenticateUserAsync(token));
+        }
+
         [HttpPost("forgot-password")]
         public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto forgotPasswordDto)
         {

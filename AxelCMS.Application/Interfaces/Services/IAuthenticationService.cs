@@ -15,5 +15,6 @@ namespace AxelCMS.Application.Interfaces.Services
         Task<ApiResponse<string>> ResetPasswordAsync(ResetPasswordDto resetPasswordDto);
         ApiResponse<string> ValidateToken(ValidateTokenDto validateTokenDto);
         Task<ApiResponse<string>> ChangePasswordAsync(string authToken, UpdatePasswordDto updatePasswordDto);
+        Task<ApiResponse<string>> VerifyAndAuthenticateUserAsync(string idToken);
     }
 }

@@ -28,7 +28,7 @@ namespace AxelCMS.Controllers
         }
 
         [HttpGet("get-users")]
-        public async Task<IActionResult> GetUsersByPagination(int page, int perPage)
+        public async Task<IActionResult> GetUsersByPaginationAsync(int page, int perPage)
         {
             if (!ModelState.IsValid)
             {
@@ -48,7 +48,7 @@ namespace AxelCMS.Controllers
         }
 
         [HttpPatch("photo/{userId}")]
-        public async Task<IActionResult> UpdateUserPhotoByUserId(string userId, [FromForm] UpdatePhotoDto updatePhotoDto)
+        public async Task<IActionResult> UpdateUserPhotoByUserIdAsync(string userId, [FromForm] UpdatePhotoDto updatePhotoDto)
         {
             if (!ModelState.IsValid)
             {

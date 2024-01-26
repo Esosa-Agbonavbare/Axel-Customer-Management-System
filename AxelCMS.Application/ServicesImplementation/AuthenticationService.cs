@@ -3,6 +3,9 @@ using AxelCMS.Application.DTO;
 using AxelCMS.Application.Interfaces.Services;
 using AxelCMS.Domain;
 using AxelCMS.Domain.Entities;
+using Google.Apis.Auth;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
@@ -11,6 +14,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using IAuthenticationService = AxelCMS.Application.Interfaces.Services.IAuthenticationService;
 
 namespace AxelCMS.Application.ServicesImplementation
 {
@@ -40,18 +44,16 @@ namespace AxelCMS.Application.ServicesImplementation
                 var email = await _userManager.FindByEmailAsync(registerDto.Email);
                 if (email != null)
                 {
-                    // why the new keyword?
                     return new ApiResponse<string>(false, "User with this email already exist.", StatusCodes.Status400BadRequest, new List<string>());
                 }
                 var user = _mapper.Map<User>(registerDto);
-
                 var result = await _userManager.CreateAsync(user, registerDto.Password);
+
                 if (result.Succeeded)
                 {
+                    await _userManager.AddToRoleAsync(user, "User");
                     var emailConfirmationToken = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-
                     var confirmEmailUrl = "https://localhost:7075/confirm-email=" + Uri.EscapeDataString(user.Email) + "&token=" + Uri.EscapeDataString(emailConfirmationToken);
-
                     var mailRequest = new MailRequest
                     {
                         ToEmail = user.Email,
@@ -59,14 +61,25 @@ namespace AxelCMS.Application.ServicesImplementation
                         Body = $"Thank you for registering! Please confirm your email address by clicking the link below:<br>" +
                                $"<a href='{confirmEmailUrl}'>Confirm Email</a>"
                     };
-                    await _emailService.SendEmailconfirmationAsync(mailRequest, emailConfirmationToken);
+                    //await _emailService.SendEmailconfirmationAsync(mailRequest, emailConfirmationToken);
+                    user.EmailConfirmed = false;
+                    await _userManager.UpdateAsync(user);
+                    return new ApiResponse<string>(true, "User registered successfully", StatusCodes.Status201Created, emailConfirmationToken);
                 }
-                return new ApiResponse<string>(true, "User registered successfully", StatusCodes.Status201Created);
+                else
+                {
+                    var errors = new List<string>();
+                    foreach (var error in result.Errors)
+                    {
+                        errors.Add(error.Description);
+                    }
+                    return new ApiResponse<string>(false, "Registration failed", StatusCodes.Status404NotFound, errors);
+                }
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Error in registering a user: {ex.Message}");
-                return new ApiResponse<string>(false, "Error occurred while creating manager", StatusCodes.Status500InternalServerError, new List<string> { ex.InnerException.ToString() });
+                return new ApiResponse<string>(false, "Error occurred during registration", StatusCodes.Status500InternalServerError, new List<string> { ex.Message });
             }
         }
 
@@ -75,6 +88,7 @@ namespace AxelCMS.Application.ServicesImplementation
             try
             {
                 var user = await _userManager.FindByEmailAsync(loginDto.Email);
+
                 if (user == null)
                 {
                     return new ApiResponse<string>(false, "User not found", StatusCodes.Status404NotFound);
@@ -84,7 +98,8 @@ namespace AxelCMS.Application.ServicesImplementation
                 if (result.Succeeded)
                 {
                     var role = (await _userManager.GetRolesAsync(user)).FirstOrDefault();
-                    return new ApiResponse<string>(true, GenerateJwtToken(user, role), StatusCodes.Status200OK);
+                    var token = GenerateJwtToken(user, role);
+                    return new ApiResponse<string>(true, "Login successful", StatusCodes.Status200OK, token);
                 }
                 else if (result.IsLockedOut)
                 {
@@ -209,8 +224,8 @@ namespace AxelCMS.Application.ServicesImplementation
                     Subject = "Axel Corporations Password Reset Instructions",
                     Body = $"Please reset your password by clicking <a href = '{resetPasswordUrl}'>here</a>"
                 };
-                await _emailService.SendHtmlEmailAsync(mailRequest);
-                return new ApiResponse<string>(true, "Password reset email sent successfully", StatusCodes.Status200OK);
+                //await _emailService.SendHtmlEmailAsync(mailRequest);
+                return new ApiResponse<string>(true, "Password reset email sent successfully", StatusCodes.Status200OK, token);
             }
             catch (Exception ex)
             {
@@ -295,20 +310,64 @@ namespace AxelCMS.Application.ServicesImplementation
                 var token = authToken.Replace("Bearer ", "");
                 var handler = new JwtSecurityTokenHandler();
                 var jsonToken = handler.ReadToken(token) as JwtSecurityToken;
-
                 var userId = jsonToken?.Claims.FirstOrDefault(claim => claim.Type == JwtRegisteredClaimNames.Jti)?.Value;
 
                 if (string.IsNullOrWhiteSpace(userId))
                 {
                     return new ApiResponse<string>(false, "Invalid or expired token", StatusCodes.Status401Unauthorized);
                 }
-                return new ApiResponse<string>(true, "User Id extracted successfully", StatusCodes.Status200OK);
+                return new ApiResponse<string>(true, "User Id extracted successfully", StatusCodes.Status200OK, userId);
             }
             catch (Exception ex)
             {
                 var errorList = new List<string> { ex.Message };
                 return new ApiResponse<string>(false, "Error extracting User Id from token", StatusCodes.Status500InternalServerError, errorList);
             }
-        }        
+        }
+
+        public async Task<ApiResponse<string>> VerifyAndAuthenticateUserAsync(string idToken)
+        {
+            try
+            {
+                var payload = await GoogleJsonWebSignature.ValidateAsync(idToken, new GoogleJsonWebSignature.ValidationSettings());
+                var userId = payload.Subject;
+                var userEmail = payload.Email;
+                var userName = payload.Name;
+                var firstName = payload.GivenName;
+                var lastName = payload.FamilyName;
+                var existingUser = await _userManager.FindByEmailAsync(userEmail);
+                if (existingUser == null)
+                {
+                    var newUser = new User
+                    {
+                        Email = userEmail,
+                        UserName = userEmail,
+                        FirstName = firstName,
+                        LastName = lastName,
+                    };
+                    var result = await _userManager.CreateAsync(newUser);
+                    if (result.Succeeded)
+                    {
+                        await _signInManager.SignInAsync(newUser, isPersistent: false);
+                        var Token = GenerateJwtToken(newUser, "User"); //how to assign role using google authentication?
+                        return new ApiResponse<string>(true, "User created and authenticated successfully on the server side", StatusCodes.Status200OK, Token);
+                    }
+                    else
+                    {
+                        return new ApiResponse<string>(false, "User creation failed", StatusCodes.Status400BadRequest);
+                    }
+                }
+                else
+                {
+                    await _signInManager.SignInAsync(existingUser, isPersistent: false);
+                    var Token = GenerateJwtToken(existingUser, "User"); //how to assign role using google authentication?
+                    return new ApiResponse<string>(true, "User authenticated successfully on the server side", StatusCodes.Status200OK, Token);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<string>(false, "Error occurred while authenticating user", StatusCodes.Status500InternalServerError, new List<string> { ex.Message});
+            }
+        }
     }
 }

@@ -9,18 +9,18 @@ namespace AxelCMS.Application.ServicesImplementation
 {
     public class EmailService : IEmailService
     {
-        private readonly EmailSettings emailSettings;
+        private readonly EmailSettings _emailSettings;
 
-        public EmailService(IOptions<EmailSettings> options)
+        public EmailService(IOptions<EmailSettings> emailSettings)
         {
-            this.emailSettings = options.Value;
+            _emailSettings = emailSettings.Value;
         }
 
         public async Task SendHtmlEmailAsync(MailRequest mailRequest)
         {
             var message = new MimeMessage
             {
-                Sender = MailboxAddress.Parse(emailSettings.Email)
+                Sender = MailboxAddress.Parse(_emailSettings.Email)
             };
             message.To.Add(MailboxAddress.Parse(mailRequest.ToEmail));
             message.Subject = mailRequest.Subject;
@@ -50,26 +50,25 @@ namespace AxelCMS.Application.ServicesImplementation
                     fileBytes2 = ms2.ToArray();
                     builder.Attachments.Add("attachment2.jpeg", fileBytes2, ContentType.Parse("application/octet-stream"));
                 }
+            }
+            message.Body = builder.ToMessageBody();
 
-                message.Body = builder.ToMessageBody();
-
-                using (var client = new SmtpClient())
+            using (var client = new SmtpClient())
+            {
+                try
                 {
-                    try
-                    {
-                        await client.ConnectAsync(emailSettings.Host, emailSettings.Port, SecureSocketOptions.StartTls);
-                        await client.AuthenticateAsync(emailSettings.Email, emailSettings.Password);
-                        await client.SendAsync(message);
-                    }
-                    catch (Exception ex)
-                    {
-                        throw new InvalidOperationException("Email sending failed", ex);
-                    }
-                    finally
-                    {
-                        client.Disconnect(true);
-                        client.Dispose();
-                    }
+                    await client.ConnectAsync(_emailSettings.Host, _emailSettings.Port, SecureSocketOptions.StartTls);
+                    await client.AuthenticateAsync(_emailSettings.Email, _emailSettings.Password);
+                    await client.SendAsync(message);
+                }
+                catch (Exception ex)
+                {
+                    throw new InvalidOperationException("Email sending failed", ex);
+                }
+                finally
+                {
+                    client.Disconnect(true);
+                    client.Dispose();
                 }
             }
         }
@@ -77,7 +76,7 @@ namespace AxelCMS.Application.ServicesImplementation
         public async Task SendEmailconfirmationAsync(MailRequest mailRequest, string emailConfirmationToken)
         {
             var message = new MimeMessage();
-            message.Sender = MailboxAddress.Parse(emailSettings.Email);
+            message.Sender = MailboxAddress.Parse(_emailSettings.Email);
             message.To.Add(MailboxAddress.Parse(mailRequest.ToEmail));
             message.Subject = mailRequest.Subject;
 
@@ -89,13 +88,13 @@ namespace AxelCMS.Application.ServicesImplementation
             {
                 try
                 {
-                    await client.ConnectAsync(emailSettings.Host, emailSettings.Port, SecureSocketOptions.StartTls);
-                    await client.AuthenticateAsync(emailSettings.Email, emailSettings.Password);
+                    await client.ConnectAsync(_emailSettings.Host, _emailSettings.Port, SecureSocketOptions.StartTls);
+                    await client.AuthenticateAsync(_emailSettings.Email, _emailSettings.Password);
                     await client.SendAsync(message);
                 }
                 catch(Exception ex)
                 {
-                    throw new InvalidOperationException("Email sending failed", ex);
+                    throw new InvalidOperationException("Email sending failed", ex.InnerException);
                 }
                 finally
                 {

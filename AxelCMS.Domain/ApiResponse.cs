@@ -23,6 +23,13 @@
             StatusCode = statusCode;
             Errors = errors;
         }
+        public ApiResponse(bool isSucceeded, string message, int statusCode, T data)
+        {
+            Succeeded = isSucceeded;
+            Message = message;
+            StatusCode = statusCode;
+            Data = data;
+        }
         public ApiResponse(bool isSucceeded, string message, int statusCode)
         {
             Succeeded = isSucceeded;

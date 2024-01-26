@@ -6,6 +6,7 @@ namespace AxelCMS.Domain.Entities
     {
         public DateTimeOffset OrderDate => CreatedAt;
         public IList<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
+
         [ForeignKey("UserId")]
         public string UserId { get; set; }
         [ForeignKey("ShippingAddressId")]
